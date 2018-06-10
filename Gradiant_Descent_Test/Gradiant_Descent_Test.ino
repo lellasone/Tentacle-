@@ -18,6 +18,7 @@ void loop() {
   Serial.println("");
   Serial.println("Target: " + String(tempRange));
   Serial.println("Seconds: " + String((millis() - temp) / 1000.0));
+  Serial.println("Result: " + String(range));
   Serial.println("Error: " + String(tempRange - range));
   delay(2000);
   
@@ -27,21 +28,23 @@ double execute_descent (double rangeTarget, double height){
   double theta1 = 0.001;
   double rangeCurrent = compute_range(theta1, height, ARMLENGTH);
   double rangeOld = rangeCurrent;
-  double stepSize = .002;
+  double stepSize = .1;
   bool breakLoop = 1;
   while(breakLoop){
-    double rangeCurrent = compute_range(theta1, height, ARMLENGTH);
     if(rangeCurrent > rangeTarget){
       theta1 -= stepSize;
     } else {
       theta1 += stepSize;
     }
-    //Serial.println(abs(compute_cost(rangeTarget, rangeCurrent)));
-    breakLoop = abs(compute_cost(rangeTarget, rangeCurrent)) > .05;
-    //Serial.println(abs(compute_cost(rangeTarget, rangeCurrent)) > .05);
-    //if (compute_cost(rangeTarget, rangeCurrent) * compute_cost(rangeTarget, rangeOld) < 0){
-    //  stepSize = stepSize / 2;
-    //}
+    rangeCurrent = compute_range(theta1, height, ARMLENGTH);
+    Serial.println(abs(compute_cost(rangeTarget, rangeCurrent)));
+    breakLoop = abs(compute_cost(rangeTarget, rangeCurrent)) > .01;
+    Serial.println(abs(compute_cost(rangeTarget, rangeCurrent)) > .01);
+    if (compute_cost(rangeTarget, rangeCurrent) * compute_cost(rangeTarget, rangeOld) < 0){
+      stepSize = stepSize / 2;
+      Serial.println("Flip");
+      //Serial.println(stepSize);
+    }
     double rangeOld = rangeCurrent;
   }
   return(theta1);
