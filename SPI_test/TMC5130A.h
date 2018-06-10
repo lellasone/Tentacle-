@@ -8,6 +8,8 @@ public:
     void setup();
 
     byte get_status(); // returns the status byte for the chip.
+    void enable_stealth(bool); // enables or dissables stealthchop. 
+    void setRamp(); //enables ramp mode. 
     
     void _write_register(byte, byte[5]);
     void _read_register(byte, byte[5]);

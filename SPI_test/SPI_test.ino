@@ -14,26 +14,25 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   byte bytes[5];
-  byte toSend[4] = {0xAA, 0xBB, 0xCC, 0xDD};
+
+  byte valueLocal[] = {0x00, 0xFF, 0xAA, 0xFF};
+  motorDriverC._write_register(0x2D, valueLocal);
+  motorDriverC._read_register(0x2D, bytes);
   
-  motorDriverC._read_register(0x21, &bytes[0]);
-  motorDriverC._write_register(0x21, toSend);
-  byte statusByte = motorDriverC.get_status();
+  print_datagram(bytes);
+  motorDriverC._read_register(0x20, bytes);
+  print_datagram(bytes);
+  motorDriverC.setRamp();
+  delay(2000);
+}
+
+void print_datagram(byte bytes[5]){
   mySerial.print("status: ");
-  mySerial.print(statusByte, HEX);
+  mySerial.print(bytes[0], HEX);
   mySerial.print(", data: ");
   mySerial.print((bytes[1]), HEX);
   mySerial.print((bytes[2]), HEX);
   mySerial.print((bytes[3]), HEX);
   mySerial.println((bytes[4]), HEX);
-  motorDriverC._write_register(0x21, toSend);
-  delay(1000);
-  for(int i = 4; i > 1; i--){
-    mySerial.println(i);
-  }
-}
-
-void print_datagram(byte bytes[5]){
-  
 }
 

@@ -8,6 +8,12 @@ TMC5130A::TMC5130A(int chipSelectPin, int enablePin){
   //setup and dissable SPI chip select. 
 }
 
+/*
+ * This function sets up the control pins for the motor controller. 
+ * 
+ * It should be called after the class has been instantiated, but before
+ * any attempt is made to communicate with the motor driver. 
+ */
 void TMC5130A::setup(){
   pinMode(chipSelect, OUTPUT);
   digitalWrite( chipSelect, HIGH);
@@ -28,12 +34,54 @@ void TMC5130A::enable(){
   digitalWrite(enableDevice, LOW); 
 }
 
+/*
+ * Returns the motor controller status byte in MSB first form. 
+ * 
+ * bit values run as follows: (See datasheet page 22)
+ * 7 - Signals stop right switch status. 
+ * 6 - Signals stop left switch status. 
+ * 5 - Signals target reached.
+ * 4 - Signals target velocity reached.
+ * 3 - Signals motor stand still.
+ * 2 - Signals stallguard flag active. 
+ * 1 - Signals driver 1 error. 
+ * 0 - Signals reset has occured (and GSTAT has not been read). 
+ * 
+ * Returns: Byte. 
+ */
 byte TMC5130A::get_status(){
   byte bytes[5];
   TMC5130A::_read_register(0x00, bytes);
   return(bytes[0]);
 }
 
+/*
+ * This function sets the device to ramp mode.
+ * 
+ * This should be called during class initialization, before 
+ * any attempt is made to set the target or current locations. 
+ */
+void TMC5130A::setRamp(){
+  byte rampBytes[] = {0x00, 0x00, 0x00, 0x00};
+  TMC5130A::_write_register(0x20, rampBytes);
+}
+
+/*
+ * This function enables or dissables stealth chop. 
+ * 
+ * Param enableStealth enable if true, dissable if false. 
+ */
+void TMC5130A::enable_stealth(bool enableStealth){
+  byte registerValue[5];
+  TMC5130A::_read_register(0x00, registerValue);
+  
+  if(enableStealth){
+    registerValue[5] = registerValue[5] | 0x04;
+  } else {
+    registerValue[5] = registerValue[5] & 0x04;
+  }
+  TMC5130A::_write_register(0x00, registerValue[1]);
+}
 /*
  * Write a value to a register onboard the motor driver.
  * 
@@ -42,18 +90,31 @@ byte TMC5130A::get_status(){
  * @Param value the 4 byte word to be written. Formatted as an array. 
  * @Return None. 
  */
-void TMC5130A::_write_register(byte targetRegister, byte value[5] ){
+void TMC5130A::_write_register(byte address, byte value[4] ){
   byte data[5];
-  targetRegister = targetRegister + 0x80;
-  _send_datagram(targetRegister, value, &data[0]);
+  address = address + 0x80;
+  _send_datagram(address, value, &data[0]);
 }
 
+/*
+ * This function reads the specified target register.
+ * 
+ * Data is returned through the provided returnData pointer. That pointer
+ * must point to a 5 byte array. The status byte is provided as the first 
+ * byte and should be disregarded for most purposes. 
+ * 
+ * Param targetRegister The register to read. The MSB should be 0. 
+ * Param returnData The array into which read data should be placed. 
+ */
 void TMC5130A::_read_register(byte targetRegister, byte returnData[5]){
   byte *data = returnData;
-  _send_datagram(targetRegister, 0x00000000, &returnData[0]);
+  targetRegister = targetRegister & 0x7F;
+  _send_datagram(targetRegister, 0x10000000, &returnData[0]);
+  _send_datagram(targetRegister, 0x10000000, &returnData[0]);
 }
 
 void TMC5130A::_send_datagram(byte address, byte value[4], byte returnData[5]){
+  
   digitalWrite(chipSelect, LOW);
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE3));
   returnData[0] = SPI.transfer(address);
