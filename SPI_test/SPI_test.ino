@@ -14,15 +14,9 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   byte bytes[5];
-
-  byte valueLocal[] = {0x00, 0xFF, 0xAA, 0xFF};
-  motorDriverC._write_register(0x2D, valueLocal);
-  motorDriverC._read_register(0x2D, bytes);
-  
-  print_datagram(bytes);
+  motorDriverC.set_ramp();
   motorDriverC._read_register(0x20, bytes);
   print_datagram(bytes);
-  motorDriverC.setRamp();
   delay(2000);
 }
 

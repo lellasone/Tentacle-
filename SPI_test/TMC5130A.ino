@@ -1,6 +1,12 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#define TMC5130A_ADR_VSTART 0x23
+#define TMC5130A_ADR_A1 0x24
+#define TMC5130A_ADR_V1 0x25
+#define TMC5130A_ADR_VSTOP 0x2B
+
+
 TMC5130A::TMC5130A(int chipSelectPin, int enablePin){
   SPI.begin();
   chipSelect = chipSelectPin;
@@ -21,6 +27,11 @@ void TMC5130A::setup(){
   //setup the enable pin, and disable the chip. 
   pinMode(enableDevice, OUTPUT);
   digitalWrite(enableDevice, HIGH);
+
+  TMC5130A::set_ramp();
+  byte value[4];
+  TMC5130A::set_VSTART(0x00000000);
+  TMC5130A::set_VSTOP(0x0000000B);
 }
 
 /*
@@ -61,9 +72,21 @@ byte TMC5130A::get_status(){
  * This should be called during class initialization, before 
  * any attempt is made to set the target or current locations. 
  */
-void TMC5130A::setRamp(){
-  byte rampBytes[] = {0x00, 0x00, 0x00, 0x00};
+void TMC5130A::set_ramp(){
+  byte rampBytes[] = {0x00, 0x00, 0x00, 0xFF};
   TMC5130A::_write_register(0x20, rampBytes);
+}
+
+void TMC5130A::set_VSTART(long value){
+  byte bytes[4];
+  TMC5130A::_setByteArray(value, bytes);
+  TMC5130A::_write_register(TMC5130A_ADR_VSTART, bytes);
+}
+
+void TMC5130A::set_VSTOP(long value){
+  byte bytes[4];
+  TMC5130A::_setByteArray(value, bytes);
+  TMC5130A::_write_register(TMC5130A_ADR_VSTOP, bytes);
 }
 
 /*
@@ -118,8 +141,8 @@ void TMC5130A::_send_datagram(byte address, byte value[4], byte returnData[5]){
   digitalWrite(chipSelect, LOW);
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE3));
   returnData[0] = SPI.transfer(address);
-  for(int i = 4; i > 0; i--){
-    returnData[i] = SPI.transfer(value[i-1]);
+  for(int i = 0; i < 4; i++){
+    returnData[i+1] = SPI.transfer(value[i-1]);
   }
   SPI.endTransaction();
   digitalWrite(chipSelect, HIGH);
@@ -133,5 +156,13 @@ void TMC5130A::_send_datagram(byte address, byte value[4], byte returnData[5]){
  */
 void TMC5130A::_error(int errorNumber){
   
+}
+
+void TMC5130A::_setByteArray(long value, byte Array[4]){
+  long valuet = 0x00AA00FF;
+  for(int i = 0; i < 4; i++){
+    int temp = i * 8;
+    Array[3 - i] = (value >> temp) & 0xFF;
+  }
 }
 
