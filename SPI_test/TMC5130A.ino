@@ -14,30 +14,34 @@
 #define TMC5130A_ADR_TZEROWAIT 0x2C
 #define TMC5130A_ADR_XTARGET 0x2D
 #define TMC5130A_ADR_XACTUAL 0x21
+#define TMC5130A_ADR_CHOPCONF 0x6C
 
-#define TMC5130A_DEFAULT_IHOLD_IRUN 0x011400D8
-#define TMC5130A_DEFAULT_VSTART 0x00000005
-#define TMC5130A_DEFAULT_A1 0x000001AE8
-#define TMC5130A_DEFAULT_V1 0x000000350
-#define TMC5130A_DEFAULT_AMAX 0x000011F4
-#define TMC5130A_DEFAULT_VMAX 0x00FF0D40
-#define TMC5130A_DEFAULT_DMAX 0x00002BC
-#define TMC5130A_DEFAULT_D1 0x000000578
-#define TMC5130A_DEFAULT_VSTOP 0x0000000A
-#define TMC5130A_DEFAULT_TZEROWAIT 0x0000000A
+#define TMC5130A_DEFAULT_IHOLD_IRUN 0xF1011483
+#define TMC5130A_DEFAULT_VSTART 0x0000000F
+#define TMC5130A_DEFAULT_A1 0x000004F4
+#define TMC5130A_DEFAULT_V1 0x0000C350
+#define TMC5130A_DEFAULT_AMAX 0x000388B4
+#define TMC5130A_DEFAULT_VMAX 0x004E2085
+#define TMC5130A_DEFAULT_DMAX 0x000002BC
+#define TMC5130A_DEFAULT_D1 0x00000578
+#define TMC5130A_DEFAULT_VSTOP 0xF100000A
+#define TMC5130A_DEFAULT_TZEROWAIT 0xF100000A
 #define TMC5130A_DEFAULT_XTARGET 0x00000000
-#define TMC5130A_DEFAULT_GCONF 0x000000005
+#define TMC5130A_DEFAULT_GCONF 0x0000005
+#define TMC5130A_DEFAULT_CHOPCONF 0x000001C5
 
 #define TMC5130A_BITMASK_I_SCALE_ANALOG 0x00000001
 #define TMC5130A_BITMASK_EN_PWM_MODE 0x00000004
 
 
 
-TMC5130A::TMC5130A(int chipSelectPin, int enablePin, int currentScalePin){
+TMC5130A::TMC5130A(int chipSelectPin, int enablePin, int currentScalePin, int stepPin, int dirPin){
   SPI.begin();
   chipSelect = chipSelectPin;
   enableDevice = enablePin;
   currentScale = currentScalePin;
+  stepControl = stepPin;
+  directionControl = dirPin;
   //setup and dissable SPI chip select. 
 }
 
@@ -58,6 +62,12 @@ void TMC5130A::setup(){
   pinMode(currentScale, OUTPUT);
   analogWrite(currentScale, 0);
 
+  pinMode(stepControl, OUTPUT);
+  digitalWrite(stepControl,LOW);
+  
+  pinMode(directionControl, OUTPUT);
+  digitalWrite(directionControl,LOW);
+
   
   TMC5130A::set_VSTART(TMC5130A_DEFAULT_VSTART);
   TMC5130A::set_V1(TMC5130A_DEFAULT_V1);
@@ -69,6 +79,8 @@ void TMC5130A::setup(){
   TMC5130A::set_TZEROWAIT(TMC5130A_DEFAULT_TZEROWAIT);
   TMC5130A::set_GCONF(TMC5130A_DEFAULT_GCONF);
   TMC5130A::set_IHOLD_IRUN(TMC5130A_DEFAULT_IHOLD_IRUN);
+  TMC5130A::set_CHOPCONF(TMC5130A_DEFAULT_CHOPCONF);
+  
   TMC5130A::set_ramp();
 }
 
@@ -105,6 +117,23 @@ byte TMC5130A::get_status(){
   return(bytes[0]);
 }
 
+/* 
+ *  Moves the motor to the specified location. 
+ *  
+ *  Param rotations the desired location in number of rotations as a float. 
+ */
+void TMC5130A::set_rotations(float rotations){
+  long usteps = rotations * 200 * 256;
+  TMC5130A::set_XTARGET(usteps);
+}
+
+/*
+ * Zeros the device's internal home location. 
+ */
+void TMC5130A::set_home(){
+  TMC5130A::set_XACTUAL(0x00000000);
+}
+
 /*
  * This function sets the device to ramp mode.
  * 
@@ -112,7 +141,7 @@ byte TMC5130A::get_status(){
  * any attempt is made to set the target or current locations. 
  */
 void TMC5130A::set_ramp(){
-  byte rampBytes[] = {0x00, 0x00, 0x00, 0xA3};
+  byte rampBytes[] = {0x00, 0x00, 0x00, 0x00};
   TMC5130A::_write_register(0x20, rampBytes);
 }
 
@@ -167,24 +196,12 @@ void TMC5130A::set_IHOLD_IRUN(long value){
 void TMC5130A::set_XACTUAL(long value){
   TMC5130A::_set_register(TMC5130A_ADR_XACTUAL, value); 
 }
-
-
-/*
- * This function enables or dissables stealth chop. 
- * 
- * Param enableStealth enable if true, dissable if false. 
- */
-void TMC5130A::enable_stealth(bool enableStealth){
-  byte registerValue[5];
-  TMC5130A::_read_register(0x00, registerValue);
-  
-  if(enableStealth){
-    registerValue[5] = registerValue[5] | 0x04;
-  } else {
-    registerValue[5] = registerValue[5] & 0x04;
-  }
-  TMC5130A::_write_register(0x00, registerValue[1]);
+void TMC5130A::set_CHOPCONF(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_CHOPCONF, value); 
 }
+
+
+
 /*
  * Write a value to a register onboard the motor driver.
  * 
@@ -223,7 +240,7 @@ void TMC5130A::_send_datagram(byte address, byte value[4], byte returnData[5]){
   SPI.beginTransaction(SPISettings(2000000, MSBFIRST, SPI_MODE3));
   returnData[0] = SPI.transfer(address);
   for(int i = 0; i < 4; i++){
-    returnData[i+1] = SPI.transfer(value[i-1]);
+    returnData[i+1] = SPI.transfer(value[i]);
   }
   SPI.endTransaction();
   digitalWrite(chipSelect, HIGH);
@@ -240,7 +257,6 @@ void TMC5130A::_error(int errorNumber){
 }
 
 void TMC5130A::_setByteArray(long value, byte Array[4]){
-  long valuet = 0x00AA00FF;
   for(int i = 0; i < 4; i++){
     int temp = i * 8;
     Array[3 - i] = (value >> temp) & 0xFF;

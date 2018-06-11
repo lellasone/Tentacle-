@@ -2,13 +2,38 @@
 
 class TMC5130A {
 public:
-    TMC5130A(int, int, int); // inializes class, should be called immediatly upon system startup.
+    TMC5130A(int, int, int, int, int); // inializes class, should be called immediatly upon system startup.
     void enable(); // sets registers and activates enable pin. Should be called before use. 
     void disable(); // re-sets the enable pin. 
     void setup();
 
+    
+    void set_home();
+    void set_rotations(float);
     byte get_status(); // returns the status byte for the chip.
-    void enable_stealth(bool); // enables or dissables stealthchop.
+    
+    // current control settings. 
+    void set_analog_scale(); // sets corresponding GCONF bit.
+    void set_IHOLD_IRUN(long); 
+    void set_GCONF(long); 
+    void set_TPOWERDOWN(long);
+    
+    void _write_register(byte, byte[5]);
+    void _read_register(byte, byte[5]);
+
+    
+    void set_XTARGET(long);
+    void set_XACTUAL(long);
+
+    
+    void _set_register(byte, long);// sets an arbitrary register on the device. 
+    
+private:
+    int chipSelect; // Stores the CS pin for this driver, set by init.
+    int enableDevice; //enables the motor driver power output.
+    int currentScale; //sets the max output current between 0 and 2 amps. 
+    int stepControl;
+    int directionControl;
 
     // motion controller settings.
     void set_ramp(); //enables ramp mode. 
@@ -21,26 +46,7 @@ public:
     void set_D1(long);
     void set_VSTOP(long);
     void set_TZEROWAIT(long);
-    void set_XTARGET(long);
-    void set_XACTUAL(long);
-
-    // current control settings. 
-
-    void set_analog_scale(); // sets corresponding GCONF bit.
-    void set_IHOLD_IRUN(long); 
-    void set_GCONF(long); 
-    void set_TPOWERDOWN(long);
-    
-    void _write_register(byte, byte[5]);
-    void _read_register(byte, byte[5]);
-
-    
-    void _set_register(byte, long);// sets an arbitrary register on the device. 
-    
-private:
-    int chipSelect; // Stores the CS pin for this driver, set by init.
-    int enableDevice; //enables the motor driver power output.
-    int currentScale; //sets the max output current between 0 and 2 amps. 
+    void set_CHOPCONF(long);
     
     void _send_datagram(byte, byte[5], byte[5]);
 

@@ -1,7 +1,7 @@
 #include "TMC5130A.h"
 #include <SoftwareSerial.h>
 
-TMC5130A motorDriverC(10, 32, 9);
+TMC5130A motorDriverC(10, 32, 9, 49, 48);
 SoftwareSerial mySerial(14, 15);
 
 void setup() {
@@ -15,21 +15,33 @@ void setup() {
   pinMode(48, OUTPUT);
   digitalWrite(48,LOW);
   
-  motorDriverC._set_register(0x6C, 0x0001C5D3);
-  motorDriverC.set_XACTUAL(0xC5000000);
-  motorDriverC.set_XTARGET(0xFFFFFFFF);
-
-}
-void loop() {
-  
   byte data[4];
+  motorDriverC.TMC5130A::_read_register(0x6C, data);
+  print_datagram(data);
   motorDriverC.TMC5130A::_read_register(0x21, data);
   mySerial.print("actual: ");
   print_datagram(data);
-  motorDriverC.TMC5130A::_read_register(0x2D, data);
-  mySerial.print("target: ");
-  print_datagram(data);
-  delay(1000);
+}
+void loop() {
+  motorDriverC.set_rotations(1.0);
+  delayByReading(3500);
+  motorDriverC.set_rotations(0.0);
+  delayByReading(2500);
+  motorDriverC.set_rotations(-1.0);
+  delayByReading(2500);
+}
+
+void delayByReading(int timeDelay){
+  byte data[4];
+  for(int i = 0; i < timeDelay ; i = i + 200){
+    motorDriverC.TMC5130A::_read_register(0x21, data);
+    mySerial.print("actual: ");
+    print_datagram(data);
+    motorDriverC.TMC5130A::_read_register(0x2D, data);
+    mySerial.print("target: ");
+    print_datagram(data);
+    delay(100);
+  }
 }
 
 void print_datagram(byte bytes[5]){
