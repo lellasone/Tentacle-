@@ -4,7 +4,24 @@
 #define TMC5130A_ADR_VSTART 0x23
 #define TMC5130A_ADR_A1 0x24
 #define TMC5130A_ADR_V1 0x25
+#define TMC5130A_ADR_AMAX 0x26
+#define TMC5130A_ADR_VMAX 0x27
+#define TMC5130A_ADR_DMAX 0x28
+#define TMC5130A_ADR_D1 0x2A
 #define TMC5130A_ADR_VSTOP 0x2B
+#define TMC5130A_ADR_TZEROWAIT 0x2C
+#define TMC5130A_ADR_XTARGET 0x2D
+
+#define TMC5130A_DEFAULT_VSTART 0x00000000
+#define TMC5130A_DEFAULT_A1 0x000003E8
+#define TMC5130A_DEFAULT_V1 0x0000C350
+#define TMC5130A_DEFAULT_AMAX 0x000001F4
+#define TMC5130A_DEFAULT_VMAX 0x00000D40
+#define TMC5130A_DEFAULT_DMAX 0x000002BC
+#define TMC5130A_DEFAULT_D1 0x000000578
+#define TMC5130A_DEFAULT_VSTOP 0x0000000A
+#define TMC5130A_DEFAULT_TZEROWAIT 0x0000000A
+#define TMC5130A_DEFAULT_XTARGET 0x00000000
 
 
 TMC5130A::TMC5130A(int chipSelectPin, int enablePin){
@@ -30,8 +47,14 @@ void TMC5130A::setup(){
 
   TMC5130A::set_ramp();
   byte value[4];
-  TMC5130A::set_VSTART(0x00000000);
-  TMC5130A::set_VSTOP(0x0000000B);
+  TMC5130A::set_VSTART(TMC5130A_DEFAULT_VSTART);
+  TMC5130A::set_V1(TMC5130A_DEFAULT_V1);
+  TMC5130A::set_A1(TMC5130A_DEFAULT_A1);
+  TMC5130A::set_AMAX(TMC5130A_DEFAULT_AMAX);
+  TMC5130A::set_VMAX(TMC5130A_DEFAULT_VMAX);
+  TMC5130A::set_D1(TMC5130A_DEFAULT_D1);
+  TMC5130A::set_VSTOP(TMC5130A_DEFAULT_VSTOP);
+  TMC5130A::set_TZEROWAIT(TMC5130A_DEFAULT_TZEROWAIT);
 }
 
 /*
@@ -73,21 +96,53 @@ byte TMC5130A::get_status(){
  * any attempt is made to set the target or current locations. 
  */
 void TMC5130A::set_ramp(){
-  byte rampBytes[] = {0x00, 0x00, 0x00, 0xFF};
+  byte rampBytes[] = {0x00, 0x00, 0x00, 0x00};
   TMC5130A::_write_register(0x20, rampBytes);
 }
 
-void TMC5130A::set_VSTART(long value){
+/*
+ * An internal function for setting an arbitrary register. 
+ * 
+ * This should be called by adress wrappers. If you need to 
+ * access a register for which there is no wrapper create a new one. 
+ */
+void TMC5130A::_set_register(byte address, long value){
   byte bytes[4];
   TMC5130A::_setByteArray(value, bytes);
-  TMC5130A::_write_register(TMC5130A_ADR_VSTART, bytes);
+  TMC5130A::_write_register(address, bytes);
 }
 
-void TMC5130A::set_VSTOP(long value){
-  byte bytes[4];
-  TMC5130A::_setByteArray(value, bytes);
-  TMC5130A::_write_register(TMC5130A_ADR_VSTOP, bytes);
+void TMC5130A::set_VSTART(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_VSTART, value); 
 }
+void TMC5130A::set_A1(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_A1, value); 
+}
+void TMC5130A::set_V1(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_V1, value); 
+}
+void TMC5130A::set_AMAX(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_AMAX, value); 
+}
+void TMC5130A::set_VMAX(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_VMAX, value); 
+}
+void TMC5130A::set_DMAX(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_DMAX, value); 
+}
+void TMC5130A::set_D1(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_D1, value); 
+}
+void TMC5130A::set_VSTOP(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_VSTOP, value); 
+}
+void TMC5130A::set_TZEROWAIT(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_TZEROWAIT, value); 
+}
+void TMC5130A::set_XTARGET(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_XTARGET, value); 
+}
+
 
 /*
  * This function enables or dissables stealth chop. 

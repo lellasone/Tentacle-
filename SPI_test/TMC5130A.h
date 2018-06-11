@@ -12,7 +12,15 @@ public:
 
     void set_ramp(); //enables ramp mode. 
     void set_VSTART(long); //set the VSTART speed. 
+    void set_V1(long);
+    void set_A1(long);
+    void set_AMAX(long);
+    void set_VMAX(long);
+    void set_DMAX(long);
+    void set_D1(long);
     void set_VSTOP(long);
+    void set_TZEROWAIT(long);
+    void set_XTARGET(long);
     
     void _write_register(byte, byte[5]);
     void _read_register(byte, byte[5]);
@@ -22,6 +30,7 @@ private:
     int enableDevice; //enables the motor driver power output.
     
     void _send_datagram(byte, byte[5], byte[5]);
+    void _set_register(byte, long);// sets an arbitrary register on the device. 
 
 
     void _error(int);
