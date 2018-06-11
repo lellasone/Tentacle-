@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <SPI.h>
 
+#define TMC5130A_ADR_GCONF 0x00
+#define TMC5130A_ADR_IHOLD_IRUN 0x10
 #define TMC5130A_ADR_VSTART 0x23
 #define TMC5130A_ADR_A1 0x24
 #define TMC5130A_ADR_V1 0x25
@@ -11,23 +13,31 @@
 #define TMC5130A_ADR_VSTOP 0x2B
 #define TMC5130A_ADR_TZEROWAIT 0x2C
 #define TMC5130A_ADR_XTARGET 0x2D
+#define TMC5130A_ADR_XACTUAL 0x21
 
-#define TMC5130A_DEFAULT_VSTART 0x00000000
-#define TMC5130A_DEFAULT_A1 0x000003E8
-#define TMC5130A_DEFAULT_V1 0x0000C350
-#define TMC5130A_DEFAULT_AMAX 0x000001F4
-#define TMC5130A_DEFAULT_VMAX 0x00000D40
-#define TMC5130A_DEFAULT_DMAX 0x000002BC
+#define TMC5130A_DEFAULT_IHOLD_IRUN 0x011400D8
+#define TMC5130A_DEFAULT_VSTART 0x00000005
+#define TMC5130A_DEFAULT_A1 0x000001AE8
+#define TMC5130A_DEFAULT_V1 0x000000350
+#define TMC5130A_DEFAULT_AMAX 0x000011F4
+#define TMC5130A_DEFAULT_VMAX 0x00FF0D40
+#define TMC5130A_DEFAULT_DMAX 0x00002BC
 #define TMC5130A_DEFAULT_D1 0x000000578
 #define TMC5130A_DEFAULT_VSTOP 0x0000000A
 #define TMC5130A_DEFAULT_TZEROWAIT 0x0000000A
 #define TMC5130A_DEFAULT_XTARGET 0x00000000
+#define TMC5130A_DEFAULT_GCONF 0x000000005
+
+#define TMC5130A_BITMASK_I_SCALE_ANALOG 0x00000001
+#define TMC5130A_BITMASK_EN_PWM_MODE 0x00000004
 
 
-TMC5130A::TMC5130A(int chipSelectPin, int enablePin){
+
+TMC5130A::TMC5130A(int chipSelectPin, int enablePin, int currentScalePin){
   SPI.begin();
   chipSelect = chipSelectPin;
   enableDevice = enablePin;
+  currentScale = currentScalePin;
   //setup and dissable SPI chip select. 
 }
 
@@ -45,8 +55,10 @@ void TMC5130A::setup(){
   pinMode(enableDevice, OUTPUT);
   digitalWrite(enableDevice, HIGH);
 
-  TMC5130A::set_ramp();
-  byte value[4];
+  pinMode(currentScale, OUTPUT);
+  analogWrite(currentScale, 0);
+
+  
   TMC5130A::set_VSTART(TMC5130A_DEFAULT_VSTART);
   TMC5130A::set_V1(TMC5130A_DEFAULT_V1);
   TMC5130A::set_A1(TMC5130A_DEFAULT_A1);
@@ -55,6 +67,9 @@ void TMC5130A::setup(){
   TMC5130A::set_D1(TMC5130A_DEFAULT_D1);
   TMC5130A::set_VSTOP(TMC5130A_DEFAULT_VSTOP);
   TMC5130A::set_TZEROWAIT(TMC5130A_DEFAULT_TZEROWAIT);
+  TMC5130A::set_GCONF(TMC5130A_DEFAULT_GCONF);
+  TMC5130A::set_IHOLD_IRUN(TMC5130A_DEFAULT_IHOLD_IRUN);
+  TMC5130A::set_ramp();
 }
 
 /*
@@ -66,6 +81,7 @@ void TMC5130A::setup(){
  */
 void TMC5130A::enable(){
   digitalWrite(enableDevice, LOW); 
+  analogWrite(currentScale, 100);
 }
 
 /*
@@ -96,7 +112,7 @@ byte TMC5130A::get_status(){
  * any attempt is made to set the target or current locations. 
  */
 void TMC5130A::set_ramp(){
-  byte rampBytes[] = {0x00, 0x00, 0x00, 0x00};
+  byte rampBytes[] = {0x00, 0x00, 0x00, 0xA3};
   TMC5130A::_write_register(0x20, rampBytes);
 }
 
@@ -141,6 +157,15 @@ void TMC5130A::set_TZEROWAIT(long value){
 }
 void TMC5130A::set_XTARGET(long value){
   TMC5130A::_set_register(TMC5130A_ADR_XTARGET, value); 
+}
+void TMC5130A::set_GCONF(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_GCONF, value); 
+}
+void TMC5130A::set_IHOLD_IRUN(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_IHOLD_IRUN, value); 
+}
+void TMC5130A::set_XACTUAL(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_XACTUAL, value); 
 }
 
 
@@ -187,6 +212,7 @@ void TMC5130A::_write_register(byte address, byte value[4] ){
 void TMC5130A::_read_register(byte targetRegister, byte returnData[5]){
   byte *data = returnData;
   targetRegister = targetRegister & 0x7F;
+  _send_datagram(targetRegister, 0x10000000, &returnData[0]);
   _send_datagram(targetRegister, 0x10000000, &returnData[0]);
   _send_datagram(targetRegister, 0x10000000, &returnData[0]);
 }
