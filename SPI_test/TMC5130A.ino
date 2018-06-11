@@ -263,3 +263,27 @@ void TMC5130A::_setByteArray(long value, byte Array[4]){
   }
 }
 
+/*
+ * This function takes a datagram and returns a printable string. 
+ * 
+ * This is a convience function intended for use during debug, and
+ * returns a string which is formatted as follows: 
+ * "Status: [0xSS], Data: [DD,DD,DD,DD]"
+ * 
+ * Param datagram is a 5 byte array containing the responce data from 
+ * a TMC4130A in MSB format, including the status byte. 
+ */
+String TMC5130A::datagram_to_string(byte datagram[5]){
+  String returnString = "status: ";
+  returnString += String(datagram[0], HEX);
+  returnString += ", data: ";
+  returnString += String(datagram[1], HEX);
+  returnString += ",";
+  returnString += String(datagram[2], HEX);
+  returnString += ",";
+  returnString += String(datagram[3], HEX);
+  returnString += ",";
+  returnString += String(datagram[4], HEX);
+  return(returnString);
+}
+

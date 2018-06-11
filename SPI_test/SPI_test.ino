@@ -1,56 +1,22 @@
 #include "TMC5130A.h"
 #include <SoftwareSerial.h>
 
+// statically define a motor object. 
 TMC5130A motorDriverC(10, 32, 9, 49, 48);
-SoftwareSerial mySerial(14, 15);
 
 void setup() {
-  // put your setup code here, to run once:
+  // must be called before your program runs. 
   motorDriverC.setup();
-  mySerial.begin(9600);
-  mySerial.println("READY");
+
+  //can be called any time before you wish the motor to move. 
   motorDriverC.enable();
-  pinMode(49, OUTPUT);
-  digitalWrite(49,LOW);
-  pinMode(48, OUTPUT);
-  digitalWrite(48,LOW);
-  
-  byte data[4];
-  motorDriverC.TMC5130A::_read_register(0x6C, data);
-  print_datagram(data);
-  motorDriverC.TMC5130A::_read_register(0x21, data);
-  mySerial.print("actual: ");
-  print_datagram(data);
 }
 void loop() {
   motorDriverC.set_rotations(1.0);
-  delayByReading(3500);
+  delay(3500);
   motorDriverC.set_rotations(0.0);
-  delayByReading(2500);
+  delay(2500);
   motorDriverC.set_rotations(-1.0);
-  delayByReading(2500);
-}
-
-void delayByReading(int timeDelay){
-  byte data[4];
-  for(int i = 0; i < timeDelay ; i = i + 200){
-    motorDriverC.TMC5130A::_read_register(0x21, data);
-    mySerial.print("actual: ");
-    print_datagram(data);
-    motorDriverC.TMC5130A::_read_register(0x2D, data);
-    mySerial.print("target: ");
-    print_datagram(data);
-    delay(100);
-  }
-}
-
-void print_datagram(byte bytes[5]){
-  mySerial.print("status: ");
-  mySerial.print(bytes[0], HEX);
-  mySerial.print(", data: ");
-  mySerial.print((bytes[1]), HEX);
-  mySerial.print((bytes[2]), HEX);
-  mySerial.print((bytes[3]), HEX);
-  mySerial.println((bytes[4]), HEX);
+  delay(2500);
 }
 
