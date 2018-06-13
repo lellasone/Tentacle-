@@ -118,7 +118,10 @@ byte TMC5130A::get_status(){
 }
 
 /* 
- *  Moves the motor to the specified location. 
+ *  Moves the motor to the specified location.
+ *  
+ *  Movement is conducted in absolute cordinates relative to the zero 
+ *  position of the motor driver. The input value may not exceed +-42107.
  *  
  *  Param rotations the desired location in number of rotations as a float. 
  */
