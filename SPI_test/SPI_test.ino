@@ -3,6 +3,10 @@
 
 // statically define a motor object. 
 TMC5130A motorDriverC(10, 32, 9, 49, 48);
+TMC5130A motorA(10, 32, 9, 49, 48);
+TMC5130A motorB(10, 32, 9, 49, 48);
+TMC5130A motorC(10, 32, 9, 49, 48);
+
 
 void setup() {
   // must be called before your program runs. 
