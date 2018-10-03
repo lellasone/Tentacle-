@@ -10,8 +10,11 @@ public:
 
     // main API functions. 
     void set_home(); // zero the current location register. 
+    void go_home(bool); //Enables stallGuard and uses it to home to the end of an axis. 
     void set_rotations(float); // go to absolute position relative to home, units of rotations.
     byte get_status(); // returns the status byte for the chip.
+    String get_DRV();
+    String get_RAMPSTAT(); // clear Stall Guard conditions. 
 
     //advanced control options. 
     void _set_register(byte, long);// sets an arbitrary register on the device. 
@@ -48,7 +51,12 @@ private:
     void set_TZEROWAIT(long); // sets the delay between subsequent motor moves. 
     void set_CHOPCONF(long); // allows configuration of the chop settings. 
     void set_GCONF(long); // set the general configuration register. 
+    void set_SWMODE(long); // sets configuration registers relating to stallguard and end stops. 
+    void set_COOLCONF(long ); // sets a number of stallGuard features.
+    void set_TCOOLTHRS(long); // determines the time between steps below which stallGuard will operate. 
 
+    byte _get_register(byte);
+    long get_XACTUAL(); // gets the current XACTUAL value in rotations. 
     void _write_register(byte, byte[5]);
     void _send_datagram(byte, byte[5], byte[5]);
 

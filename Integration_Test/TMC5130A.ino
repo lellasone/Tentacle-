@@ -15,13 +15,18 @@
 #define TMC5130A_ADR_XTARGET 0x2D
 #define TMC5130A_ADR_XACTUAL 0x21
 #define TMC5130A_ADR_CHOPCONF 0x6C
+#define TMC5130A_ADR_SWMODE 0x34
+#define TMC5130A_ADR_RAMPSTAT 0x35
+#define TMC5130A_ADR_COOLCONF 0x6D
+#define TMC5130A_ADR_DRVSTATUS 0x6F
+#define TMC5130A_ADR_TCOOLTHRS 0x14
 
-#define TMC5130A_DEFAULT_IHOLD_IRUN 0x00001F04
+#define TMC5130A_DEFAULT_IHOLD_IRUN 0x00070603
 #define TMC5130A_DEFAULT_VSTART 0x0000000F
 #define TMC5130A_DEFAULT_A1 0x000004F4
 #define TMC5130A_DEFAULT_V1 0x0000C350
 #define TMC5130A_DEFAULT_AMAX 0x000388B4
-#define TMC5130A_DEFAULT_VMAX 0x004E2085
+#define TMC5130A_DEFAULT_VMAX 0x0FFF2085
 #define TMC5130A_DEFAULT_DMAX 0x000002BC
 #define TMC5130A_DEFAULT_D1 0x00000578
 #define TMC5130A_DEFAULT_VSTOP 0xF100000A
@@ -29,9 +34,15 @@
 #define TMC5130A_DEFAULT_XTARGET 0x00000000
 #define TMC5130A_DEFAULT_GCONF 0x0000004
 #define TMC5130A_DEFAULT_CHOPCONF 0x000001C5
+#define TMC5130A_DEFAULT_COOLCONF 0x01380000
+#define TMC5130A_DEFAULT_TCOOLTHRS 0x00000000
+#define TMC5130A_DEFAULT_SWMODE_STALLGUARD 0x00000000
 
 #define TMC5130A_BITMASK_I_SCALE_ANALOG 0x00000001
 #define TMC5130A_BITMASK_EN_PWM_MODE 0x00000004
+#define TMC5130A_BITMASK_SWMODE_STALLGUARD 0x00000400
+#define TMC5130A_BITMASK_STALL_THRESHOLD 0x002F0000
+#define TMC5130A_BITMASK_BLANK 0x00000000
 
 
 
@@ -68,7 +79,9 @@ void TMC5130A::setup(){
   pinMode(directionControl, OUTPUT);
   digitalWrite(directionControl,LOW);
 
-  
+  TMC5130A::set_home();
+  TMC5130A::get_RAMPSTAT();
+  TMC5130A::set_XTARGET(TMC5130A_DEFAULT_XTARGET);
   TMC5130A::set_VSTART(TMC5130A_DEFAULT_VSTART);
   TMC5130A::set_V1(TMC5130A_DEFAULT_V1);
   TMC5130A::set_A1(TMC5130A_DEFAULT_A1);
@@ -80,6 +93,10 @@ void TMC5130A::setup(){
   TMC5130A::set_GCONF(TMC5130A_DEFAULT_GCONF);
   TMC5130A::set_IHOLD_IRUN(TMC5130A_DEFAULT_IHOLD_IRUN);
   TMC5130A::set_CHOPCONF(TMC5130A_DEFAULT_CHOPCONF);
+  TMC5130A::set_COOLCONF(TMC5130A_DEFAULT_COOLCONF);
+  TMC5130A::set_TCOOLTHRS(TMC5130A_DEFAULT_TCOOLTHRS);
+  TMC5130A::set_SWMODE(TMC5130A_DEFAULT_SWMODE_STALLGUARD);
+
   
   TMC5130A::set_ramp();
 }
@@ -117,13 +134,26 @@ byte TMC5130A::get_status(){
   return(bytes[0]);
 }
 
+String TMC5130A::get_DRV(){
+  byte bytes[5];
+  TMC5130A::_read_register(TMC5130A_ADR_DRVSTATUS, bytes);
+  return(datagram_to_string(bytes));
+}
+
+// used to clear stall guard conditions. 
+String TMC5130A::get_RAMPSTAT(){
+  byte bytes[5];
+  TMC5130A::_read_register(TMC5130A_ADR_RAMPSTAT, bytes);
+  return(datagram_to_string(bytes));
+}
+
 /* 
  *  Moves the motor to the specified location.
  *  
  *  Movement is conducted in absolute cordinates relative to the zero 
  *  position of the motor driver. The input value may not exceed +-42107.
  *  
- *  Param rotations the desired location in number of rotations as a float. 
+ *  Param: rotations - the desired location in number of rotations as a float. 
  */
 void TMC5130A::set_rotations(float rotations){
   long usteps = rotations * 200 * 256;
@@ -135,6 +165,55 @@ void TMC5130A::set_rotations(float rotations){
  */
 void TMC5130A::set_home(){
   TMC5130A::set_XACTUAL(0x00000000);
+}
+
+/*
+ * This function uses stallGuard collision control to home the motor. 
+ * 
+ * This process has the following steps:
+ *    - Move the motor one turn in the direction the motor will not be homing. 
+ *    - Set the stallGuard settings. 
+ *    - Begin motion in the homing direction. 
+ *    - Return once a collision has occured, or the specified timeout has elapsed. 
+ * 
+ * Param: directions - determines if the motor will home in the "positive" or "negative" direction. 
+ */
+void TMC5130A::go_home(bool directions){
+  const long backOff = 1.0; // distance to back off before homing. 
+  const long homeDistance = 5.0; // allowable turns before homing timeout. 
+  
+  // Set the positive/negative homing direction. 
+  long directionModifier = -1;
+  if(directions){ directionModifier = 1;};
+
+  // Move away from the intended home direction to build up speed.
+  long current = TMC5130A::get_XACTUAL();
+  TMC5130A::set_rotations(current + -1 * directionModifier * backOff);
+  delay(2000);
+  TMC5130A::set_rotations(current + directionModifier * homeDistance);
+  delay(10000); //time to home per axis. 
+  TMC5130A::set_home();
+  
+  /*
+  // Enable stallGuard. 
+  // Move towards the target end stop. 
+  
+  TMC5130A::set_GCONF(TMC5130A_BITMASK_BLANK);
+  current = TMC5130A::get_XACTUAL();
+  TMC5130A::set_rotations(current + directionModifier * homeDistance);
+  delay(1000);
+  TMC5130A::set_SWMODE(TMC5130A_BITMASK_BLANK);
+  TMC5130A::set_SWMODE(TMC5130A_BITMASK_SWMODE_STALLGUARD);
+  Serial.println(TMC5130A::get_DRV());
+  TMC5130A::get_RAMPSTAT();
+  Serial.println(TMC5130A::get_DRV());
+  // Dissable stallGuard. 
+  delay(25000);
+  
+  TMC5130A::set_SWMODE(TMC5130A_BITMASK_BLANK);
+  Serial.println(TMC5130A::get_DRV());
+  TMC5130A::set_home();
+  */
 }
 
 /*
@@ -202,8 +281,29 @@ void TMC5130A::set_XACTUAL(long value){
 void TMC5130A::set_CHOPCONF(long value){
   TMC5130A::_set_register(TMC5130A_ADR_CHOPCONF, value); 
 }
+void TMC5130A::set_SWMODE(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_SWMODE, value);
+}
+void TMC5130A::set_COOLCONF(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_COOLCONF, value);
+}
+void TMC5130A::set_TCOOLTHRS(long value){
+  TMC5130A::_set_register(TMC5130A_ADR_TCOOLTHRS, value);
+}
 
-
+/*
+ * This function returns the current XACTUAL value as a long. 
+ */
+long TMC5130A::get_XACTUAL(){
+  byte bytes[5];
+  TMC5130A::_read_register(TMC5130A_ADR_XACTUAL, bytes); 
+  long actual = 0;
+  actual += bytes[4] << 24;
+  actual += bytes[3] << 16;
+  actual += bytes[2] << 8;
+  actual += bytes[1];
+  return(actual);
+}
 
 /*
  * Write a value to a register onboard the motor driver.

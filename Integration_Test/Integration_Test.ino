@@ -1,7 +1,7 @@
 #include "TMC5130A.h"
 #include <SoftwareSerial.h>
 
-double Pi = 3.14159;
+//double Pi = 3.14159;
 double HEIGHT = 5;
 double ARMLENGTH = .2;
 double RADIUS = .5;
@@ -12,33 +12,60 @@ TMC5130A motorDriverC(10, 32, 9, 49, 48);
 TMC5130A motorDriverB(11, 31, 7, 47, 46);
 TMC5130A motorDriverA(12, 30, 8, 45, 44);
 
+SoftwareSerial mySerial(14, 15);
 void setup() {
   Serial.begin(9600);
   Serial.println("Begin");
 
   motorDriverA.setup();
+  delay(10);
   motorDriverB.setup();
+  delay(10);
   motorDriverC.setup();
+  delay(50);
   //can be called any time before you wish the motor to move. 
   motorDriverA.enable();
+  delay(50);
   motorDriverB.enable();
+  delay(50);
   motorDriverC.enable();
+  delay(1000);
+  Serial.println(motorDriverC.get_DRV());
+  //Serial.println(motorDriverC.get_RAMPSTAT());
+  motorDriverC.go_home(true);
+  Serial.println(motorDriverC.get_DRV());
+  motorDriverA.go_home(true);
+  motorDriverB.go_home(true);
+  
+  motorDriverC.set_rotations(-10);
+  motorDriverA.set_rotations(-10);
+  motorDriverB.set_rotations(-10);
+  delay(5000);
+  motorDriverA.set_home();
+  motorDriverB.set_home();
+  motorDriverC.set_home();
+  
 }
 
 void loop() {
+  Serial.println(motorDriverC.get_DRV());
+  motorDriverC.get_RAMPSTAT();
+  Serial.println(motorDriverC.get_DRV());
+  //Serial.println(motorDriverC.get_RAMPSTAT());
   // put your main code here, to run repeatedly:
 
-  static float theta1 = 2;
+  static float theta1 = 4;
   static float theta2 = 0;
 
-  float deltas[3];
+  static float deltas[3];
   compute_tendon_changes(theta1, theta2, deltas);
   
   motorDriverA.set_rotations(deltas[0]);
   motorDriverB.set_rotations(deltas[1]);
   motorDriverC.set_rotations(deltas[2]);
-  theta2 += .1;
-  delay(500);
+  delay(20);
+  theta2 += .05;
+  
   
 }
 
@@ -50,11 +77,14 @@ void loop() {
  *  For the purposes of this function it is assumed that A is the 0 direction of 
  *  theta2. Such that for a theta2 value of 0 the tenticle would bend towords the 
  *  motor A tendon. 
+ *  
+ *  This function modifies the "deltas" paramiter, which must be a 3 value array
+ *  of floats. 
  */
 void compute_tendon_changes(float theta1, float theta2, float deltas[]){
   deltas[0] = RADIUS * (theta1) * cos(theta2 + 0 + PI);
-  deltas[1] = RADIUS * (theta1) * cos(theta2 + (2/3)*PI + PI);
-  deltas[2] = RADIUS * (theta1) * cos(theta2 + (4/3)*PI  + PI);
+  deltas[1] = RADIUS * (theta1) * cos(theta2 + (2.0/3.0)*PI + PI);
+  deltas[2] = RADIUS * (theta1) * cos(theta2 + (4.0/3.0)*PI + PI);
 }
 
 /*
