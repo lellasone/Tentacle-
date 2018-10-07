@@ -2,6 +2,7 @@
 Firmware and Software to control a single-stage continuum lamp using aruco markers. 
 
 Communications Protocal: 
+
   Commands must be sent to the tentacle over 2 wire serial using the following datagram format. 
   
   [start][command][arguments 6 bytes][stop]
